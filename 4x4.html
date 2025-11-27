@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Memory 4x4 - Noël</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #c41e3a 0%, #165b33 50%, #c41e3a 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        .header {
+            position: absolute;
+            top: 10px;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 10px;
+            color: white;
+            font-size: clamp(0.7rem, 2.5vw, 1.8rem);
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            gap: clamp(5px, 1.5vw, 15px);
+            flex-wrap: wrap;
+        }
+
+        .score {
+            background: rgba(255,255,255,0.25);
+            padding: clamp(6px, 1.5vw, 12px) clamp(10px, 2vw, 20px);
+            border-radius: clamp(8px, 2vw, 15px);
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255,255,255,0.3);
+            white-space: nowrap;
+            flex-shrink: 0;
+            font-size: clamp(0.7rem, 2vw, 1.5rem);
+        }
+
+        .game-container {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            grid-template-rows: repeat(4, 1fr);
+            gap: clamp(5px, 1.5vw, 20px);
+            padding: 10px;
+            width: 90vw;
+            max-width: 600px;
+            height: 70vh;
+            max-height: 600px;
+            margin-top: 100px;
+        }
+
+        .card {
+            background: white;
+            border-radius: clamp(10px, 2vw, 20px);
+            cursor: pointer;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.6s, box-shadow 0.3s;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            width: 100%;
+            height: 100%;
+        }
+
+        .card:hover:not(.flipped):not(.matched) {
+            transform: scale(1.05);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+        }
+
+        .card.flipped {
+            transform: rotateY(180deg);
+        }
+
+        .card.matched {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .card-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: clamp(10px, 2vw, 20px);
+            font-size: clamp(2rem, 5vw, 4rem);
+            font-weight: bold;
+        }
+
+        .card-front {
+            background: linear-gradient(135deg, #c41e3a 0%, #165b33 100%);
+            color: white;
+            font-size: clamp(2rem, 6vw, 4rem);
+        }
+
+        .card-back {
+            background: white;
+            transform: rotateY(180deg);
+            padding: 5px;
+        }
+
+        .card-back img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            border-radius: 15px;
+        }
+
+        button {
+            padding: clamp(8px, 1.5vw, 12px) clamp(15px, 3vw, 25px);
+            font-size: clamp(0.7rem, 2vw, 1.3rem);
+            font-weight: bold;
+            border: none;
+            border-radius: clamp(6px, 1.5vw, 10px);
+            cursor: pointer;
+            background: white;
+            color: #c41e3a;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            transition: transform 0.2s, box-shadow 0.2s;
+            white-space: nowrap;
+            flex-shrink: 1;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .victory {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            background: white;
+            padding: 50px;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            text-align: center;
+            z-index: 1000;
+            transition: transform 0.5s;
+        }
+
+        .victory.show {
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        .victory h2 {
+            color: #c41e3a;
+            font-size: clamp(2rem, 5vw, 3rem);
+            margin-bottom: 20px;
+        }
+
+        .victory p {
+            font-size: clamp(1.2rem, 3vw, 1.8rem);
+            color: #333;
+            margin-bottom: 30px;
+        }
+
+        .loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            font-size: 1.5rem;
+            color: #c41e3a;
+        }
+
+        .error {
+            color: #c41e3a;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px;
+            max-width: 600px;
+        }
+
+        @media (max-width: 768px) {
+            .game-container {
+                width: 95vw;
+                height: 60vh;
+                margin-top: 120px;
+                gap: 3px;
+                padding: 5px;
+            }
+            
+            .header {
+                position: relative;
+                flex-direction: column;
+                gap: 5px;
+                padding: 8px 5px;
+                background: rgba(0,0,0,0.3);
+                border-radius: 0 0 15px 15px;
+            }
+            
+            .header > div, .header > button {
+                font-size: 0.7rem;
+                padding: 5px 10px;
+            }
+            
+            body {
+                justify-content: flex-start;
+                padding-top: 0;
+            }
+            
+            .card-front {
+                font-size: clamp(2rem, 8vw, 3rem);
+            }
+        }
+        
+        /* Ajustement pour les très grands écrans (TBI) */
+        @media (min-width: 1400px) {
+            .game-container {
+                max-width: 800px;
+                max-height: 800px;
+                margin-top: 80px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="score">Coups: <span id="moves">0</span></div>
+        <div class="score">Paires: <span id="pairs">0</span>/8</div>
+        <div class="score">Temps: <span id="timer">0:00</span></div>
+        <button onclick="restartGame()">Nouvelle Partie</button>
+        <button onclick="toggleFullscreen()">Plein Écran</button>
+    </div>
+
+    <div id="loading" class="loading">
+        Chargement des images... 🎄
+    </div>
+
+    <div class="game-container" id="gameBoard" style="display: none;"></div>
+
+    <div class="victory" id="victory">
+        <h2>🎉 Bravo ! 🎉</h2>
+        <p>Vous avez gagné en <span id="finalMoves"></span> coups<br>
+        Temps: <span id="finalTime"></span></p>
+        <button onclick="restartGame()">Rejouer</button>
+    </div>
+
+    <script>
+        let cards = [];
+        let flippedCards = [];
+        let matchedPairs = 0;
+        let moves = 0;
+        let timer = 0;
+        let timerInterval;
+        let canFlip = true;
+        let allImagesData = [];
+        let selectedPairs = [];
+
+        // Charger toutes les images au démarrage
+        async function loadImages() {
+            try {
+                // Liste des noms de fichiers attendus (14 paires)
+                const imageFiles = [];
+                for (let i = 1; i <= 14; i++) {
+                    imageFiles.push(`${i}a.jpg`);
+                    imageFiles.push(`${i}b.jpg`);
+                }
+
+                // Charger toutes les images depuis le dossier "images"
+                const loadPromises = imageFiles.map(async (filename) => {
+                    const pairId = filename.replace(/[ab]\.(jpg|jpeg|png|gif|webp)$/i, '');
+                    try {
+                        // Tenter de charger l'image
+                        const img = new Image();
+                        await new Promise((resolve, reject) => {
+                            img.onload = resolve;
+                            img.onerror = reject;
+                            img.src = `images/${filename}`;
+                        });
+                        
+                        return {
+                            src: `images/${filename}`,
+                            pairId: pairId,
+                            name: filename
+                        };
+                    } catch (error) {
+                        // Si jpg échoue, essayer d'autres extensions
+                        for (let ext of ['png', 'jpeg', 'gif', 'webp']) {
+                            const altFilename = filename.replace(/\.jpg$/, `.${ext}`);
+                            try {
+                                const img = new Image();
+                                await new Promise((resolve, reject) => {
+                                    img.onload = resolve;
+                                    img.onerror = reject;
+                                    img.src = `images/${altFilename}`;
+                                });
+                                return {
+                                    src: `images/${altFilename}`,
+                                    pairId: pairId,
+                                    name: altFilename
+                                };
+                            } catch (e) {
+                                continue;
+                            }
+                        }
+                        throw new Error(`Image non trouvée: ${filename}`);
+                    }
+                });
+
+                allImagesData = await Promise.all(loadPromises);
+                
+                if (allImagesData.length === 28) {
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('gameBoard').style.display = 'grid';
+                    initGame();
+                } else {
+                    throw new Error('Toutes les images ne sont pas présentes');
+                }
+
+            } catch (error) {
+                document.getElementById('loading').innerHTML = `
+                    <div class="error">
+                        <h3>❌ Erreur de chargement</h3>
+                        <p>Impossible de charger les images.</p>
+                        <p><strong>Instructions:</strong></p>
+                        <ol style="text-align: left; margin-top: 10px;">
+                            <li>Crée un dossier nommé <strong>"images"</strong> dans le même dossier que ce fichier HTML</li>
+                            <li>Place tes 28 photos dans ce dossier</li>
+                            <li>Nomme-les: 1a.jpg, 1b.jpg, 2a.jpg, 2b.jpg... jusqu'à 14a.jpg, 14b.jpg</li>
+                            <li>Rafraîchis la page</li>
+                        </ol>
+                        <p style="margin-top: 15px; font-size: 0.9rem;">Format acceptés: .jpg, .jpeg, .png, .gif, .webp</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Sélectionner 8 paires aléatoires parmi les 14 disponibles
+        function selectRandomPairs() {
+            // Grouper les images par paires
+            const pairsMap = {};
+            allImagesData.forEach(img => {
+                if (!pairsMap[img.pairId]) {
+                    pairsMap[img.pairId] = [];
+                }
+                pairsMap[img.pairId].push(img);
+            });
+
+            // Obtenir tous les numéros de paires disponibles (1 à 14)
+            const availablePairIds = Object.keys(pairsMap);
+            
+            // Mélanger et sélectionner 8 paires aléatoires
+            const shuffled = availablePairIds.sort(() => Math.random() - 0.5);
+            const selected = shuffled.slice(0, 8);
+            
+            // Extraire les images des paires sélectionnées
+            selectedPairs = [];
+            selected.forEach(pairId => {
+                selectedPairs.push(...pairsMap[pairId]);
+            });
+            
+            return selectedPairs;
+        }
+
+        // Initialisation du jeu
+        function initGame() {
+            const gameBoard = document.getElementById('gameBoard');
+            gameBoard.innerHTML = '';
+            
+            // Sélectionner 8 paires aléatoires
+            const gamePairs = selectRandomPairs();
+            
+            // Créer les cartes avec leur pairId
+            let cardsData = gamePairs.map(img => ({
+                content: img.src,
+                pairId: img.pairId
+            }));
+            
+            // Mélanger les cartes
+            cardsData = cardsData.sort(() => Math.random() - 0.5);
+            
+            // Créer l'objet cards avec index final
+            cards = cardsData.map((cardData, index) => ({
+                id: index,
+                content: cardData.content,
+                pairId: cardData.pairId,
+                flipped: false,
+                matched: false
+            }));
+
+            // Créer les cartes HTML
+            cards.forEach((card, index) => {
+                const cardElement = document.createElement('div');
+                cardElement.className = 'card';
+                cardElement.dataset.id = index;
+                
+                cardElement.innerHTML = `
+                    <div class="card-face card-front">?</div>
+                    <div class="card-face card-back">
+                        <img src="${card.content}" alt="carte ${card.pairId}">
+                    </div>
+                `;
+                cardElement.addEventListener('click', () => flipCard(index));
+                gameBoard.appendChild(cardElement);
+            });
+
+            // Réinitialiser les compteurs
+            moves = 0;
+            matchedPairs = 0;
+            flippedCards = [];
+            updateStats();
+            
+            // Démarrer le timer
+            clearInterval(timerInterval);
+            timer = 0;
+            timerInterval = setInterval(updateTimer, 1000);
+        }
+
+        function flipCard(index) {
+            if (!canFlip || flippedCards.length >= 2) return;
+            
+            const card = cards[index];
+            if (card.flipped || card.matched) return;
+
+            // Retourner la carte
+            card.flipped = true;
+            const cardElement = document.querySelector(`.card[data-id="${index}"]`);
+            cardElement.classList.add('flipped');
+            flippedCards.push(index);
+
+            if (flippedCards.length === 2) {
+                moves++;
+                updateStats();
+                canFlip = false;
+                
+                setTimeout(checkMatch, 1000);
+            }
+        }
+
+        function checkMatch() {
+            const [index1, index2] = flippedCards;
+            const card1 = cards[index1];
+            const card2 = cards[index2];
+
+            // Vérifier si les cartes correspondent (même pairId)
+            const isMatch = card1.pairId === card2.pairId;
+
+            if (isMatch) {
+                // Match trouvé
+                card1.matched = true;
+                card2.matched = true;
+                document.querySelector(`.card[data-id="${index1}"]`).classList.add('matched');
+                document.querySelector(`.card[data-id="${index2}"]`).classList.add('matched');
+                matchedPairs++;
+                updateStats();
+
+                if (matchedPairs === 8) {
+                    setTimeout(showVictory, 500);
+                }
+            } else {
+                // Pas de match, retourner les cartes
+                card1.flipped = false;
+                card2.flipped = false;
+                document.querySelector(`.card[data-id="${index1}"]`).classList.remove('flipped');
+                document.querySelector(`.card[data-id="${index2}"]`).classList.remove('flipped');
+            }
+
+            flippedCards = [];
+            canFlip = true;
+        }
+
+        function updateStats() {
+            document.getElementById('moves').textContent = moves;
+            document.getElementById('pairs').textContent = matchedPairs;
+        }
+
+        function updateTimer() {
+            timer++;
+            const minutes = Math.floor(timer / 60);
+            const seconds = timer % 60;
+            document.getElementById('timer').textContent = 
+                `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        function showVictory() {
+            clearInterval(timerInterval);
+            const minutes = Math.floor(timer / 60);
+            const seconds = timer % 60;
+            document.getElementById('finalMoves').textContent = moves;
+            document.getElementById('finalTime').textContent = 
+                `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            document.getElementById('victory').classList.add('show');
+        }
+
+        function restartGame() {
+            document.getElementById('victory').classList.remove('show');
+            initGame();
+        }
+
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        // Démarrer le chargement au lancement
+        window.onload = loadImages;
+    </script>
+</body>
+</html>
